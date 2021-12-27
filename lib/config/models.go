@@ -3,7 +3,8 @@ package config
 // The model that the environment configuration is parsed to
 type Config struct {
 	Covid struct {
-		Uri string `env:"COVID_API_BASE_URL,default=https://coronavirus-19-api.herokuapp.com/countries"`
+		Uri       string `env:"COVID_API_BASE_URL,default=https://coronavirus-19-api.herokuapp.com/countries"`
+		Countries string `env:"COVID_COUNTRIES,default=Greece"`
 	}
 
 	Mongo struct {

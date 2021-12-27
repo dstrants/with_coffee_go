@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -15,6 +16,8 @@ import (
 )
 
 // Saves all covid data for today to the mongodb instance
+// The function also checks if the sync has already been done for today
+// And cancel the sync if it has.
 func StoreCasesToMongo(cases []CovidCases) {
 	cnf, _ := config.LoadConfig()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -25,7 +28,20 @@ func StoreCasesToMongo(cases []CovidCases) {
 		panic(err)
 	}
 
-	collection := client.Database(cnf.Mongo.Database).Collection("covid")
+	collection := client.Database(cnf.Mongo.Database).Collection("syncs")
+
+	var check bson.D
+
+	collection.FindOne(ctx, bson.D{{"type", "covid"}, {"date", time.Now().Format("2006-01-02")}}).Decode(&check)
+
+	if check != nil {
+		log.Printf("Imported has been performed already for %s, skipping...\n", time.Now().Format("2006-01-02"))
+		return
+	}
+
+	log.Println("No sync found. Importing today's data...")
+
+	collection = client.Database(cnf.Mongo.Database).Collection("covid")
 
 	documents := make([]interface{}, len(cases))
 
@@ -40,6 +56,12 @@ func StoreCasesToMongo(cases []CovidCases) {
 	}
 
 	log.Println("Entries saved to mongo")
+
+	collection = client.Database("news").Collection("syncs")
+
+	_, err = collection.InsertOne(ctx, bson.D{{"type", "covid"}, {"date", time.Now().Format("2006-01-02")}})
+
+	log.Println("Marked sync as successful")
 }
 
 // Load cases for all countries for the third party covid api
@@ -106,8 +128,16 @@ func ImportCovidCases() []CovidCases {
 
 // Prepare a message for covid status
 func LoadCovidCases() string {
-	results := fetchCountryCases("Greece")
+	cnf, _ := config.LoadConfig()
+	countries := strings.Split(cnf.Covid.Countries, ",")
 
-	msg := fmt.Sprintf("%s\n * Cases | New: %v Total: %v \n * Deaths | New: %v Total: %v\n", results.Country, results.TodayCases, results.Cases, results.TodayDeaths, results.TodayDeaths)
+	var msg string
+
+	for _, country := range countries {
+		results := fetchCountryCases(country)
+
+		msg = msg + fmt.Sprintf("%s\n * Cases | New: %v Total: %v \n * Deaths | New: %v Total: %v\n", results.Country, results.TodayCases, results.Cases, results.TodayDeaths, results.TodayDeaths)
+	}
+
 	return msg
 }
