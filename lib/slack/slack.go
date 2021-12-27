@@ -8,6 +8,7 @@ import (
 	"with_coffee/lib/config"
 )
 
+// Sends a slack message
 func Send(msg string) {
 	cnf, _ := config.LoadConfig()
 

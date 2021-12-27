@@ -6,6 +6,7 @@ import (
 	env "github.com/Netflix/go-env"
 )
 
+// Loads the environment configuration to a usable struct.
 func LoadConfig() (Config, env.EnvSet) {
 	var conf Config
 

@@ -1,5 +1,6 @@
 package covid
 
+// Model for covid cases per country
 type CovidCases struct {
 	Country             string `json:"country" bson:"country"`
 	Cases               int    `json:"cases" bson:"cases"`

@@ -14,6 +14,7 @@ import (
 	"with_coffee/lib/config"
 )
 
+// Saves all covid data for today to the mongodb instance
 func StoreCasesToMongo(cases []CovidCases) {
 	cnf, _ := config.LoadConfig()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -41,6 +42,7 @@ func StoreCasesToMongo(cases []CovidCases) {
 	log.Println("Entries saved to mongo")
 }
 
+// Load cases for all countries for the third party covid api
 func fetchCases() []CovidCases {
 	var Results []CovidCases
 
@@ -55,6 +57,7 @@ func fetchCases() []CovidCases {
 	return Results
 }
 
+// Load covid data for a specific country from the mongodb
 func fetchCountryCases(country string) CovidCases {
 	var Results CovidCases
 	cnf, _ := config.LoadConfig()
@@ -78,6 +81,7 @@ func fetchCountryCases(country string) CovidCases {
 	return Results
 }
 
+// Adds date field to all cases structs.
 func addTimestampToCases(cases []CovidCases) []CovidCases {
 	var timestampedResults []CovidCases
 	now := time.Now().Format("2006-01-02")
@@ -89,6 +93,8 @@ func addTimestampToCases(cases []CovidCases) []CovidCases {
 	return timestampedResults
 }
 
+// Wrapper function to consume the covid api, add timestamps and save the covid data
+// to mongodb
 func ImportCovidCases() []CovidCases {
 	log.Println("Starting importing of cases from the API...")
 	cases := addTimestampToCases(fetchCases())
@@ -98,6 +104,7 @@ func ImportCovidCases() []CovidCases {
 	return cases
 }
 
+// Prepare a message for covid status
 func LoadCovidCases() string {
 	results := fetchCountryCases("Greece")
 
