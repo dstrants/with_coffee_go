@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/go-resty/resty/v2"
+
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"with_coffee/lib/config"
 	db "with_coffee/lib/mongo"
@@ -138,46 +142,64 @@ func fetchCases(country string, date string) CovidApiResponse {
 }
 
 // Load covid data for a specific country from the mongodb
-func fetchCountryCases(country string) CovidCases {
-	var Results CovidCases
+func fetchCountryCases(country string) CovidCasesModel {
+	var Results CovidCasesModel
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	collection := db.MongoCollection(ctx, "covid")
 
-	err := collection.FindOne(ctx, bson.D{{"country", country}}).Decode(&Results)
+	var filters options.FindOneOptions
+
+	filters.Sort = bson.D{{"date", -1}}
+
+	err := collection.FindOne(ctx, bson.D{{"country", country}}, &filters).Decode(&Results)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(Results)
 	return Results
 }
 
 // Wrapper function to consume the covid api, add timestamps and save the covid data
 // to mongodb
-func ImportCovidCases(country string) {
+func ImportCountryCases(country string) {
 	syncProps := NeedsToImport(country)
-	log.Printf("Starting importing of cases after %s from the API...\n", syncProps.Date)
+	log.Printf("Starting importing of cases for %s after %s from the API...\n", country, syncProps.Date)
 	cases := addCountryToCases(country, fetchCases(country, syncProps.Date).DataProvider)
 
 	StoreCasesToMongo(cases)
 }
 
+// Import cases for all countries configured
+func ImportAllCountriesCases() {
+	cnf, _ := config.LoadConfig()
+	countries := strings.Split(cnf.Covid.Countries, ",")
+
+	for _, country := range countries {
+		ImportCountryCases(country)
+	}
+}
+
 // Prepare a message for covid status
-// func LoadCovidCases() string {
-// 	cnf, _ := config.LoadConfig()
-// 	countries := strings.Split(cnf.Covid.Countries, ",")
+func LoadCovidCases() string {
+	cnf, _ := config.LoadConfig()
+	countries := strings.Split(cnf.Covid.Countries, ",")
 
-// 	var msg string
+	var msg string
 
-// 	// for _, country := range countries {
-// 	// 	results := fetchCountryCases(country)
+	for _, country := range countries {
+		results := fetchCountryCases(country)
 
-// 	// 	//msg = msg + fmt.Sprintf("%s\n * Cases: %v Total: %v \n * Deaths | New: %v Total: %v\n", results.Country, results.CN, results.Cases, results.TodayDeaths, results.TodayDeaths)
-// 	// }
-
-// 	return msg
-// }
+		msg = msg + fmt.Sprintf("%s\n * Cases | New: %s Total: %s \n * Deaths | New: %s Total: %s\n",
+			results.Country,
+			humanize.Comma(results.TodayConfirmed),
+			humanize.Comma(results.Confirmed),
+			humanize.Comma(results.TodayDeaths),
+			humanize.Comma(results.Deaths),
+		)
+	}
+	return msg
+}

@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/Netflix/go-env v0.0.0-20210215222557-e437a7e7f9fb
+	github.com/dustin/go-humanize v1.0.0
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/slack-go/slack v0.10.1
 	go.mongodb.org/mongo-driver v1.8.1
