@@ -13,6 +13,14 @@ type CovidCases struct {
 	CntActive    int    `json:"cnt_active" bson:"cnt_active"`
 }
 
+type CovidSyncModel struct {
+	Date     string `bson:"date"`
+	Metadata struct {
+		Country string `bson:"country"`
+	} `bson:"metadata"`
+	Type string `bson:"type"`
+}
+
 type CovidCasesModel struct {
 	Date           string `bson:"date"`
 	Confirmed      int    `bson:"confirmed"`

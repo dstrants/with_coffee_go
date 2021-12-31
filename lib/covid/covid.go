@@ -14,17 +14,30 @@ import (
 )
 
 // Checks if the sync has already been done for today
-func NeedsToImport() bool {
+func NeedsToImport(country string) CovidSyncModel {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	var filter CovidSyncModel
+
+	filter.Metadata.Country = country
+	filter.Type = "covid"
+
 	collection := db.MongoCollection(ctx, "syncs")
 
-	var check bson.D
+	var check CovidSyncModel
 
-	collection.FindOne(ctx, bson.D{{"type", "covid"}, {"date", time.Now().Format("2006-01-02")}}).Decode(&check)
+	collection.FindOne(ctx, bson.D{{"type", "covid"}, {"metadata.country", country}}).Decode(&check)
 
-	return check == nil
+	if check.Date == "" {
+		log.Println("This is the first covid sync. Creating a placeholder entry on sync table.")
+		filter.Date = "1970-01-01"
+		collection.InsertOne(ctx, filter)
+	}
+	filter.Date = ""
+	collection.FindOne(ctx, filter).Decode(&check)
+
+	return check
 }
 
 // Adds extra fields to cases structs
@@ -62,6 +75,12 @@ func addCountryToCases(country string, cases []CovidCases) []CovidCasesModel {
 // The function also checks if the sync has already been done for today
 // And cancel the sync if it has.
 func StoreCasesToMongo(cases []CovidCasesModel) {
+
+	if len(cases) < 1 {
+		log.Println("No data found. Skipping sync")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -81,18 +100,24 @@ func StoreCasesToMongo(cases []CovidCasesModel) {
 		log.Fatal(err)
 	}
 
-	log.Println("Entries saved to mongo")
+	log.Printf("%d entries saved to mongo", len(documents))
 
 	collection = db.MongoCollection(ctx, "syncs")
 
-	collection.FindOneAndUpdate(ctx, bson.D{{"type", "covid"}}, bson.D{{"date", latestDate}})
+	collection.FindOneAndUpdate(ctx, bson.D{{"type", "covid"}, {"metadata.country", cases[0].Country}}, bson.D{{"$set", bson.D{{"date", latestDate}}}})
 
-	log.Println("Marked sync as successful")
+	log.Printf("Marked sync as successful until %s\n", latestDate)
 }
 
 // Load cases for all countries for the third party covid api
-func fetchCases(country string) CovidApiResponse {
+func fetchCases(country string, date string) CovidApiResponse {
 	var Results CovidApiResponse
+
+	filter := fmt.Sprintf("(iso3166_1=%s)", country)
+
+	if date != "" {
+		filter = filter + " AND " + fmt.Sprintf("(date_stamp>%s)", date)
+	}
 
 	cnf, _ := config.LoadConfig()
 
@@ -100,7 +125,7 @@ func fetchCases(country string) CovidApiResponse {
 	_, err := client.R().
 		SetQueryParams(map[string]string{
 			"cols":   "date_stamp,cnt_confirmed,cnt_death,cnt_recovered,cnt_active",
-			"where":  fmt.Sprintf("(iso3166_1=%s)", country),
+			"where":  filter,
 			"format": "amcharts",
 			"limit":  "5000",
 		}).
@@ -134,13 +159,9 @@ func fetchCountryCases(country string) CovidCases {
 // Wrapper function to consume the covid api, add timestamps and save the covid data
 // to mongodb
 func ImportCovidCases(country string) {
-	if !NeedsToImport() {
-		log.Printf("Imported has been performed already for %s, skipping...\n", time.Now().Format("2006-01-02"))
-		return
-	}
-
-	log.Println("Starting importing of cases from the API...")
-	cases := addCountryToCases(country, fetchCases(country).DataProvider)
+	syncProps := NeedsToImport(country)
+	log.Printf("Starting importing of cases after %s from the API...\n", syncProps.Date)
+	cases := addCountryToCases(country, fetchCases(country, syncProps.Date).DataProvider)
 
 	StoreCasesToMongo(cases)
 }
