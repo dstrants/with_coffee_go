@@ -45,7 +45,7 @@ func NeedsToImport(country string) CovidSyncModel {
 }
 
 // Adds extra fields to cases structs
-func addCountryToCases(country string, cases []CovidCases) []CovidCasesModel {
+func addCountryToCases(country string, cases []CovidCasesResponse) []CovidCasesModel {
 	documents := make([]CovidCasesModel, 0)
 
 	for i, v := range cases {

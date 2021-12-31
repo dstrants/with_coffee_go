@@ -1,11 +1,11 @@
 package covid
 
 type CovidApiResponse struct {
-	DataProvider []CovidCases `json:"dataProvider"`
+	DataProvider []CovidCasesResponse `json:"dataProvider"`
 }
 
-// Model for covid cases per country
-type CovidCases struct {
+// Model for covid cases http response
+type CovidCasesResponse struct {
 	DateStamp    string `json:"date_stamp" bson:"date_stamp"`
 	CntConfirmed int64  `json:"cnt_confirmed" bson:"cnt_confirmed"`
 	CntDeath     int64  `json:"cnt_death" bson:"cnt_death"`
@@ -13,6 +13,7 @@ type CovidCases struct {
 	CntActive    int64  `json:"cnt_active" bson:"cnt_active"`
 }
 
+// Helper model for the sync checking
 type CovidSyncModel struct {
 	Date     string `bson:"date"`
 	Metadata struct {
@@ -21,6 +22,7 @@ type CovidSyncModel struct {
 	Type string `bson:"type"`
 }
 
+// Base model for the covid cases per day per country
 type CovidCasesModel struct {
 	Date           string `bson:"date"`
 	Confirmed      int64  `bson:"confirmed"`
