@@ -7,33 +7,88 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/go-resty/resty/v2"
+
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"with_coffee/lib/config"
 	db "with_coffee/lib/mongo"
 )
 
 // Checks if the sync has already been done for today
-func NeedsToImport() bool {
+func NeedsToImport(country string) CovidSyncModel {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	var filter CovidSyncModel
+
+	filter.Metadata.Country = country
+	filter.Type = "covid"
+
 	collection := db.MongoCollection(ctx, "syncs")
 
-	var check bson.D
+	var check CovidSyncModel
 
-	collection.FindOne(ctx, bson.D{{"type", "covid"}, {"date", time.Now().Format("2006-01-02")}}).Decode(&check)
+	collection.FindOne(ctx, bson.D{{"type", "covid"}, {"metadata.country", country}}).Decode(&check)
 
-	return check == nil
+	if check.Date == "" {
+		log.Println("This is the first covid sync. Creating a placeholder entry on sync table.")
+		filter.Date = "1970-01-01"
+		collection.InsertOne(ctx, filter)
+	}
+	filter.Date = ""
+	collection.FindOne(ctx, filter).Decode(&check)
+
+	return check
+}
+
+// Adds extra fields to cases structs
+func addCountryToCases(country string, cases []CovidCasesResponse) []CovidCasesModel {
+	documents := make([]CovidCasesModel, 0)
+
+	for i, v := range cases {
+		var model CovidCasesModel
+
+		model.Country = country
+		model.Active = v.CntActive
+		model.Confirmed = v.CntConfirmed
+		model.Deaths = v.CntDeath
+		model.Active = v.CntActive
+		model.Date = v.DateStamp
+
+		if i > 0 {
+			model.TodayActive = v.CntActive - cases[i-1].CntActive
+			model.TodayConfirmed = v.CntConfirmed - cases[i-1].CntConfirmed
+			model.TodayRecovered = v.CntRecovered - cases[i-1].CntRecovered
+			model.TodayDeaths = v.CntDeath - cases[i-1].CntDeath
+		} else {
+			model.TodayActive = 0
+			model.TodayConfirmed = 0
+			model.TodayRecovered = 0
+			model.TodayDeaths = 0
+		}
+		documents = append(documents, model)
+
+	}
+	return documents
 }
 
 // Saves all covid data for today to the mongodb instance
 // The function also checks if the sync has already been done for today
 // And cancel the sync if it has.
-func StoreCasesToMongo(cases []CovidCases) {
+func StoreCasesToMongo(cases []CovidCasesModel) {
+
+	if len(cases) < 1 {
+		log.Println("No data found. Skipping sync")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	latestDate := cases[len(cases)-1].Date
 
 	collection := db.MongoCollection(ctx, "covid")
 
@@ -49,23 +104,36 @@ func StoreCasesToMongo(cases []CovidCases) {
 		log.Fatal(err)
 	}
 
-	log.Println("Entries saved to mongo")
+	log.Printf("%d entries saved to mongo", len(documents))
 
 	collection = db.MongoCollection(ctx, "syncs")
 
-	_, err = collection.InsertOne(ctx, bson.D{{"type", "covid"}, {"date", time.Now().Format("2006-01-02")}})
+	collection.FindOneAndUpdate(ctx, bson.D{{"type", "covid"}, {"metadata.country", cases[0].Country}}, bson.D{{"$set", bson.D{{"date", latestDate}}}})
 
-	log.Println("Marked sync as successful")
+	log.Printf("Marked sync as successful until %s\n", latestDate)
 }
 
 // Load cases for all countries for the third party covid api
-func fetchCases() []CovidCases {
-	var Results []CovidCases
+func fetchCases(country string, date string) CovidApiResponse {
+	var Results CovidApiResponse
+
+	filter := fmt.Sprintf("(iso3166_1=%s)", country)
+
+	if date != "" {
+		filter = filter + " AND " + fmt.Sprintf("(date_stamp>%s)", date)
+	}
 
 	cnf, _ := config.LoadConfig()
 
 	client := resty.New()
-	_, err := client.R().SetResult(&Results).Get(cnf.Covid.Uri)
+	_, err := client.R().
+		SetQueryParams(map[string]string{
+			"cols":   "date_stamp,cnt_confirmed,cnt_death,cnt_recovered,cnt_active",
+			"where":  filter,
+			"format": "amcharts",
+			"limit":  "5000",
+		}).
+		SetResult(&Results).Get(cnf.Covid.Uri)
 
 	if err != nil {
 		log.Fatal(err)
@@ -74,15 +142,19 @@ func fetchCases() []CovidCases {
 }
 
 // Load covid data for a specific country from the mongodb
-func fetchCountryCases(country string) CovidCases {
-	var Results CovidCases
+func fetchCountryCases(country string) CovidCasesModel {
+	var Results CovidCasesModel
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	collection := db.MongoCollection(ctx, "covid")
 
-	err := collection.FindOne(ctx, bson.D{{"country", country}}).Decode(&Results)
+	var filters options.FindOneOptions
+
+	filters.Sort = bson.D{{"date", -1}}
+
+	err := collection.FindOne(ctx, bson.D{{"country", country}}, &filters).Decode(&Results)
 
 	if err != nil {
 		log.Fatal(err)
@@ -91,30 +163,24 @@ func fetchCountryCases(country string) CovidCases {
 	return Results
 }
 
-// Adds date field to all cases structs.
-func addTimestampToCases(cases []CovidCases) []CovidCases {
-	var timestampedResults []CovidCases
-	now := time.Now().Format("2006-01-02")
-	for _, c := range cases {
-		c.Date = now
-		timestampedResults = append(timestampedResults, c)
-	}
-	log.Printf("Added current timestamp to %d entries", len(timestampedResults))
-	return timestampedResults
-}
-
 // Wrapper function to consume the covid api, add timestamps and save the covid data
 // to mongodb
-func ImportCovidCases() {
-	if !NeedsToImport() {
-		log.Printf("Imported has been performed already for %s, skipping...\n", time.Now().Format("2006-01-02"))
-		return
-	}
-
-	log.Println("Starting importing of cases from the API...")
-	cases := addTimestampToCases(fetchCases())
+func ImportCountryCases(country string) {
+	syncProps := NeedsToImport(country)
+	log.Printf("Starting importing of cases for %s after %s from the API...\n", country, syncProps.Date)
+	cases := addCountryToCases(country, fetchCases(country, syncProps.Date).DataProvider)
 
 	StoreCasesToMongo(cases)
+}
+
+// Import cases for all countries configured
+func ImportAllCountriesCases() {
+	cnf, _ := config.LoadConfig()
+	countries := strings.Split(cnf.Covid.Countries, ",")
+
+	for _, country := range countries {
+		ImportCountryCases(country)
+	}
 }
 
 // Prepare a message for covid status
@@ -127,8 +193,13 @@ func LoadCovidCases() string {
 	for _, country := range countries {
 		results := fetchCountryCases(country)
 
-		msg = msg + fmt.Sprintf("%s\n * Cases | New: %v Total: %v \n * Deaths | New: %v Total: %v\n", results.Country, results.TodayCases, results.Cases, results.TodayDeaths, results.TodayDeaths)
+		msg = msg + fmt.Sprintf("%s\n * Cases | New: %s Total: %s \n * Deaths | New: %s Total: %s\n",
+			results.Country,
+			humanize.Comma(results.TodayConfirmed),
+			humanize.Comma(results.Confirmed),
+			humanize.Comma(results.TodayDeaths),
+			humanize.Comma(results.Deaths),
+		)
 	}
-
 	return msg
 }

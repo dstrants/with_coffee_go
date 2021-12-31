@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	covid.ImportCovidCases()
+	//covid.ImportAllCountriesCases()
 	msg := covid.LoadCovidCases()
 
 	slack.Send(msg)
