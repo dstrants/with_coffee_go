@@ -5,6 +5,8 @@ import (
 	"with_coffee/lib/slack"
 )
 
+const Version = "0.2.1"
+
 func main() {
 	covid.ImportAllCountriesCases()
 
