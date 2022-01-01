@@ -193,7 +193,7 @@ func LoadCovidCases() string {
 	for _, country := range countries {
 		results := fetchCountryCases(country)
 
-		msg = msg + fmt.Sprintf("%s\n * Cases | New: %s Total: %s \n * Deaths | New: %s Total: %s\n",
+		msg = msg + fmt.Sprintf("*%s*\n • Cases\n\t○ New: `%s`\n\t○ Total: `%s` \n • Deaths\n\t○ New: `%s`\n\t○ Total: `%s`\n\n",
 			results.Country,
 			humanize.Comma(results.TodayConfirmed),
 			humanize.Comma(results.Confirmed),
