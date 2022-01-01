@@ -5,9 +5,10 @@ import (
 	"with_coffee/lib/slack"
 )
 
-func main() {
-	//covid.ImportAllCountriesCases()
-	msg := covid.LoadCovidCases()
+const Version = "0.2.1"
 
-	slack.Send(msg)
+func main() {
+	covid.ImportAllCountriesCases()
+
+	slack.SendMarkdownMessage(covid.LoadCovidCases())
 }

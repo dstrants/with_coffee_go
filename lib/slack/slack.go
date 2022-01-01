@@ -9,9 +9,8 @@ import (
 )
 
 // Sends a slack message
-func Send(msg string) {
+func SendSimpleMessage(msg string) {
 	cnf, _ := config.LoadConfig()
-
 	api := slack.New(cnf.Slack.Token)
 
 	channelID, timestamp, err := api.PostMessage(
@@ -24,4 +23,15 @@ func Send(msg string) {
 		return
 	}
 	fmt.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
+}
+
+func SendMarkdownMessage(msg string) {
+	cnf, _ := config.LoadConfig()
+	api := slack.New(cnf.Slack.Token)
+
+	api.PostMessage(
+		cnf.Slack.Channel,
+		slack.MsgOptionBlocks(slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", msg, false, false), nil, nil)),
+		slack.MsgOptionAsUser(true),
+	)
 }
