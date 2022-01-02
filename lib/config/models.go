@@ -16,4 +16,9 @@ type Config struct {
 		Token   string `env:"SLACK_TOKEN,required=true"`
 		Channel string `env:"SLACK_CHANNEL,default=news"`
 	}
+
+	HackerNews struct {
+		BaseUrl string `env:"HACKERNEWS_BASE_URL,default=https://hacker-news.firebaseio.com/v0"`
+		Limit   int    `env:"HACKERNEWS_STORIES_LIMIT,default=5"`
+	}
 }
