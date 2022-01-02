@@ -8,12 +8,12 @@ type Config struct {
 	}
 
 	Mongo struct {
-		Uri      string `env:"MONGO_CONNECTION_STRING"`
+		Uri      string `env:"MONGO_CONNECTION_STRING,required=true"`
 		Database string `env:"MONGO_DATABASE,default=news"`
 	}
 
 	Slack struct {
-		Token   string `env:"SLACK_TOKEN"`
+		Token   string `env:"SLACK_TOKEN,required=true"`
 		Channel string `env:"SLACK_CHANNEL,default=news"`
 	}
 }
