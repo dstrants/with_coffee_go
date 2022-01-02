@@ -7,7 +7,7 @@ import (
 	slackApi "github.com/slack-go/slack"
 )
 
-const Version = "0.2.3"
+const Version = "0.2.4"
 
 func main() {
 	covid.ImportAllCountriesCases()
