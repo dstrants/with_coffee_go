@@ -2,6 +2,7 @@ package slack
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/slack-go/slack"
 
@@ -29,9 +30,13 @@ func SendMarkdownMessage(msg string) {
 	cnf, _ := config.LoadConfig()
 	api := slack.New(cnf.Slack.Token)
 
-	api.PostMessage(
+	_, _, err := api.PostMessage(
 		cnf.Slack.Channel,
 		slack.MsgOptionBlocks(slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", msg, false, false), nil, nil)),
 		slack.MsgOptionAsUser(true),
 	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 }
