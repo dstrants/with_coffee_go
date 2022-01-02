@@ -6,7 +6,7 @@ import (
 	"with_coffee/lib/slack"
 )
 
-const Version = "0.2.4"
+const Version = "0.3.0"
 
 func main() {
 	// Initialized slack message
