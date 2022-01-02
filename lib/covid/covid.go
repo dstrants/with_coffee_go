@@ -184,16 +184,16 @@ func ImportAllCountriesCases() {
 }
 
 // Prepare a message for covid status
-func LoadCovidCases() string {
+func LoadCovidCases() []string {
 	cnf, _ := config.LoadConfig()
 	countries := strings.Split(cnf.Covid.Countries, ",")
 
-	var msg string
+	var messages []string
 
 	for _, country := range countries {
 		results := fetchCountryCases(country)
 
-		msg = msg + fmt.Sprintf(":flag-%s:  *%s*\n • Cases\n\t○ New → `%s`\n\t○ Total → `%s` \n • Deaths\n\t○ New → `%s`\n\t○ Total → `%s`\n\n",
+		msg := fmt.Sprintf(":flag-%s:  *%s*\n • Cases\n\t○ New → `%s`\n\t○ Total → `%s` \n • Deaths\n\t○ New → `%s`\n\t○ Total → `%s`\n\n",
 			strings.ToLower(results.Country),
 			results.Country,
 			humanize.Comma(results.TodayConfirmed),
@@ -201,6 +201,8 @@ func LoadCovidCases() string {
 			humanize.Comma(results.TodayDeaths),
 			humanize.Comma(results.Deaths),
 		)
+
+		messages = append(messages, msg)
 	}
-	return msg
+	return messages
 }
