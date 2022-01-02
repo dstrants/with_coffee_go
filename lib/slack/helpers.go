@@ -1,6 +1,11 @@
 package slack
 
-import "github.com/slack-go/slack"
+import (
+	"fmt"
+	"with_coffee/lib/hackernews"
+
+	"github.com/slack-go/slack"
+)
 
 // Instantiates a new Message that will send all info
 func InitWithCoffeeMessage() slack.Message {
@@ -19,4 +24,20 @@ func CovidMessageBlock(blocks []string) (*slack.SectionBlock, *slack.SectionBloc
 	}
 
 	return headerSection, slack.NewSectionBlock(nil, fields, nil)
+}
+
+// Helper that appends all hackenews stories to the parent message as a separate block.
+func HackeNewsMessageBlock(stories []hackernews.Story, message slack.Message) slack.Message {
+	headerText := slack.NewTextBlockObject("mrkdwn", ":newspaper: *HACKER NEWS STORIES* :newspaper:", false, false)
+	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+
+	message.Blocks.BlockSet = append(message.Blocks.BlockSet, headerSection)
+
+	for i, story := range stories {
+		msg := fmt.Sprintf("%d. <%s|%s> \n\t :man-pouting: _%s_ - :star-struck: %d", i+1, story.URL, story.Title, story.By, story.Score)
+		message.Blocks.BlockSet = append(message.Blocks.BlockSet, slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", msg, false, false), nil, nil))
+	}
+	message.Blocks.BlockSet = append(message.Blocks.BlockSet, slack.NewDividerBlock())
+
+	return message
 }
