@@ -64,10 +64,11 @@ func addCountryToCases(country string, cases []CovidCasesResponse) []CovidCasesM
 			model.TodayRecovered = v.CntRecovered - cases[i-1].CntRecovered
 			model.TodayDeaths = v.CntDeath - cases[i-1].CntDeath
 		} else {
-			model.TodayActive = 0
-			model.TodayConfirmed = 0
-			model.TodayRecovered = 0
-			model.TodayDeaths = 0
+			pastCases := fetchCountryCases(country)
+			model.TodayActive = v.CntActive - pastCases.Active
+			model.TodayConfirmed = v.CntConfirmed - pastCases.Confirmed
+			model.TodayRecovered = v.CntRecovered - pastCases.Recovered
+			model.TodayDeaths = v.CntDeath - pastCases.Deaths
 		}
 		documents = append(documents, model)
 
@@ -157,7 +158,7 @@ func fetchCountryCases(country string) CovidCasesModel {
 	err := collection.FindOne(ctx, bson.D{{"country", country}}, &filters).Decode(&Results)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Retrieving existing cases from the databases failed with %v", err)
 	}
 
 	return Results
@@ -193,9 +194,10 @@ func LoadCovidCases() []string {
 	for _, country := range countries {
 		results := fetchCountryCases(country)
 
-		msg := fmt.Sprintf(":flag-%s:  *%s*\n • Cases\n\t○ New → `%s`\n\t○ Total → `%s` \n • Deaths\n\t○ New → `%s`\n\t○ Total → `%s`\n\n",
+		msg := fmt.Sprintf(":flag-%s:  *%s* | :calendar: %s \n • Cases\n\t○ New → `%s`\n\t○ Total → `%s` \n • Deaths\n\t○ New → `%s`\n\t○ Total → `%s`\n\n",
 			strings.ToLower(results.Country),
 			results.Country,
+			results.Date,
 			humanize.Comma(results.TodayConfirmed),
 			humanize.Comma(results.Confirmed),
 			humanize.Comma(results.TodayDeaths),
