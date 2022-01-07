@@ -5,8 +5,7 @@ RUN apt-get -qq update && apt-get -yqq install upx
 
 ENV GO111MODULE=on \
   CGO_ENABLED=0 \
-  GOOS=linux \
-  GOARCH=amd64
+  GOOS=linux
 
 WORKDIR /src
 
