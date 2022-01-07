@@ -19,7 +19,7 @@ RUN go build \
   -o /bin/with_coffee \
   ./main.go
 
-RUN strip /bin/with_coffee
+
 RUN upx -q -9 /bin/with_coffee
 
 FROM scratch
