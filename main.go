@@ -14,6 +14,7 @@ func main() {
 	message := slack.InitWithCoffeeMessage()
 
 	// Weather Forecast
+	weather.StoreForecastToMongo()
 	forecasts := weather.GetAllCitiesLocations()
 	message = slack.WeatherForecastMessageBlock(forecasts, message)
 
@@ -28,4 +29,5 @@ func main() {
 
 	// Post full message to slack
 	slack.SendMultiBlockMessage(message)
+
 }

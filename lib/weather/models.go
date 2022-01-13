@@ -2,8 +2,18 @@ package weather
 
 import (
 	"context"
+	"log"
 	db "with_coffee/lib/mongo"
 )
+
+// Helper model for the sync checking
+type WeatherSyncModel struct {
+	Date     string `bson:"date"`
+	Metadata struct {
+		Location string `bson:"location"`
+	} `bson:"metadata"`
+	Type string `bson:"type"`
+}
 
 type Weather struct {
 	Location struct {
@@ -126,14 +136,56 @@ type Weather struct {
 }
 
 func (weather Weather) SaveToMongo() (Weather, error) {
+	sync, err := weather.SyncCheck()
+
+	if sync.Date != "" && err == nil {
+		log.Printf("Forecast exists for city %s and date %s", sync.Metadata.Location, sync.Date)
+		return weather, nil
+	}
+
+	if err != nil {
+		log.Printf("Had issues retrieving latest sync for %s. Error: %v", sync.Metadata.Location, err)
+		log.Println("Will save to mongo.")
+	}
+
 	ctx := context.Background()
-
 	collection := db.MongoCollection(ctx, "weather")
-
-	_, err := collection.InsertOne(ctx, weather)
+	_, err = collection.InsertOne(ctx, weather)
 
 	if err != nil {
 		return weather, err
 	}
+
+	sync = weather.ToSyncModel()
+
+	collection = db.MongoCollection(ctx, "syncs")
+	collection.InsertOne(ctx, sync)
+	log.Printf("Forecast for city %s and date %s saved to mongo and marked as synced", weather.Location.Name, weather.Forecast.Forecastday[0].Date)
+
 	return weather, nil
+}
+
+func (weather Weather) ToSyncModel() WeatherSyncModel {
+	var sync WeatherSyncModel
+	sync.Date = weather.Forecast.Forecastday[0].Date
+	sync.Metadata.Location = weather.Location.Name
+	sync.Type = "weather"
+
+	return sync
+}
+
+func (weather Weather) SyncCheck() (WeatherSyncModel, error) {
+	ctx := context.Background()
+	collection := db.MongoCollection(ctx, "syncs")
+
+	sync := weather.ToSyncModel()
+
+	var existingSync WeatherSyncModel
+
+	err := collection.FindOne(ctx, sync).Decode(&existingSync)
+
+	if err != nil {
+		return existingSync, err
+	}
+	return existingSync, nil
 }
