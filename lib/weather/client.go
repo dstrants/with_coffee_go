@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"strings"
 	"with_coffee/lib/config"
 	"with_coffee/lib/format"
 
@@ -12,6 +11,24 @@ import (
 )
 
 var cnf, _ = config.LoadConfig()
+
+// Caches the weather forecast to mongo
+func StoreForecastToMongo() {
+	cities := cnf.WeatherCitiesList()
+
+	for _, city := range cities {
+		weather, err := GetLocationForecast(city).SaveToMongo()
+
+		if err != nil {
+			log.Printf(
+				"An error occured while trying to save weather forecast for location %s and date %s. %v",
+				weather.Location.Name,
+				weather.Forecast.Forecastday[0].Date,
+				err,
+			)
+		}
+	}
+}
 
 // Loads weather forecast for a given location
 func GetLocationForecast(location string) Weather {
@@ -34,7 +51,7 @@ func GetLocationForecast(location string) Weather {
 func GetAllCitiesLocations() []string {
 	var msg []string
 
-	cities := strings.Split(cnf.Weather.Locations, ",")
+	cities := cnf.WeatherCitiesList()
 	message, err := format.LoadTemplate("message.tpl", []string{"./lib/format/templates/weather/message.tpl"})
 
 	if err != nil {

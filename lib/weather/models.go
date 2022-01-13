@@ -1,5 +1,10 @@
 package weather
 
+import (
+	"context"
+	db "with_coffee/lib/mongo"
+)
+
 type Weather struct {
 	Location struct {
 		Name           string  `json:"name"`
@@ -118,4 +123,17 @@ type Weather struct {
 			} `json:"hour"`
 		} `json:"forecastday"`
 	} `json:"forecast"`
+}
+
+func (weather Weather) SaveToMongo() (Weather, error) {
+	ctx := context.Background()
+
+	collection := db.MongoCollection(ctx, "weather")
+
+	_, err := collection.InsertOne(ctx, weather)
+
+	if err != nil {
+		return weather, err
+	}
+	return weather, nil
 }
