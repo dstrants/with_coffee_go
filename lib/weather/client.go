@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"text/template"
 	"with_coffee/lib/config"
+	"with_coffee/lib/format"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -32,17 +32,16 @@ func GetLocationForecast(location string) Weather {
 
 // Loads weather for all locations
 func GetAllCitiesLocations() []string {
+	var msg []string
+
 	cities := strings.Split(cnf.Weather.Locations, ",")
+	message, err := format.LoadTemplate("message.tpl", []string{"./lib/format/templates/weather/message.tpl"})
 
-	paths := []string{"./lib/weather/message.tpl"}
-
-	message, err := template.New("message.tpl").ParseFiles(paths...)
 	if err != nil {
-		log.Println("Could not generate template")
-		panic(err)
+		log.Printf("Could not generate template. Error: %v", err)
+		return msg
 	}
 
-	var msg []string
 	for _, city := range cities {
 		forecast := GetLocationForecast(city)
 
@@ -50,8 +49,7 @@ func GetAllCitiesLocations() []string {
 		err = message.Execute(&tpl, forecast)
 
 		if err != nil {
-			panic(err)
-			log.Println("Could not render template")
+			log.Printf("Could not render template. Error: %v", err)
 		}
 
 		msg = append(msg, tpl.String())
