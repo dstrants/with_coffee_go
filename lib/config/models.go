@@ -21,4 +21,10 @@ type Config struct {
 		BaseUrl string `env:"HACKERNEWS_BASE_URL,default=https://hacker-news.firebaseio.com/v0"`
 		Limit   int    `env:"HACKERNEWS_STORIES_LIMIT,default=5"`
 	}
+
+	Weather struct {
+		BaseUrl   string `env:"WEATHER_BASE_URL,default=http://api.weatherapi.com/v1"`
+		Locations string `env:"WEATHER_LOCATIONS,default=Thessaloniki"`
+		Token     string `env:"WEATHER_API_TOKEN,required=true"`
+	}
 }
