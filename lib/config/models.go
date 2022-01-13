@@ -1,5 +1,7 @@
 package config
 
+import "strings"
+
 // The model that the environment configuration is parsed to
 type Config struct {
 	Covid struct {
@@ -27,4 +29,8 @@ type Config struct {
 		Locations string `env:"WEATHER_LOCATIONS,default=Thessaloniki"`
 		Token     string `env:"WEATHER_API_TOKEN,required=true"`
 	}
+}
+
+func (conf Config) WeatherCitiesList() []string {
+	return strings.Split(conf.Weather.Locations, ",")
 }
