@@ -6,7 +6,7 @@ import (
 
 func LoadTemplate(name string, paths []string) (*template.Template, error) {
 
-	temp, err := template.New("message.tpl").ParseFiles(paths...)
+	temp, err := template.New(name).ParseFiles(paths...)
 	if err != nil {
 		return temp, err
 	}
