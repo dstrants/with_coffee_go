@@ -2,12 +2,16 @@ package weather
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"with_coffee/lib/config"
 	"with_coffee/lib/format"
+	db "with_coffee/lib/mongo"
 
 	"github.com/go-resty/resty/v2"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var cnf, _ = config.LoadConfig()
@@ -17,7 +21,7 @@ func StoreForecastToMongo() {
 	cities := cnf.WeatherCitiesList()
 
 	for _, city := range cities {
-		weather, err := GetLocationForecast(city).SaveToMongo()
+		weather, err := FetchLocationForecast(city).SaveToMongo()
 
 		if err != nil {
 			log.Printf(
@@ -31,7 +35,7 @@ func StoreForecastToMongo() {
 }
 
 // Loads weather forecast for a given location
-func GetLocationForecast(location string) Weather {
+func FetchLocationForecast(location string) Weather {
 	url := fmt.Sprintf("%s/forecast.json", cnf.Weather.BaseUrl)
 
 	var weather Weather
@@ -47,6 +51,22 @@ func GetLocationForecast(location string) Weather {
 	return weather
 }
 
+// Loads latest forecast from the db
+func GetLocationForecast(location string) (Weather, error) {
+	var weather Weather
+
+	ctx := context.Background()
+	collection := db.MongoCollection(ctx, "weather")
+	var filters options.FindOneOptions
+	filters.Sort = bson.M{"forecast.forecastday.0.date": -1}
+
+	err := collection.FindOne(ctx, bson.D{{"location.name", location}}, &filters).Decode(&weather)
+	if err != nil {
+		return weather, err
+	}
+	return weather, nil
+}
+
 // Loads weather for all locations
 func GetAllCitiesLocations() []string {
 	var msg []string
@@ -60,7 +80,11 @@ func GetAllCitiesLocations() []string {
 	}
 
 	for _, city := range cities {
-		forecast := GetLocationForecast(city)
+		forecast, err := GetLocationForecast(city)
+		if err != nil {
+			log.Printf("No forecast found for %s", city)
+			continue
+		}
 
 		var tpl bytes.Buffer
 		err = message.Execute(&tpl, forecast)
