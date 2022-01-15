@@ -15,6 +15,7 @@ type WeatherSyncModel struct {
 	Type string `bson:"type"`
 }
 
+// The weather forecast model
 type Weather struct {
 	Location struct {
 		Name           string  `json:"name"`
@@ -135,6 +136,7 @@ type Weather struct {
 	} `json:"forecast"`
 }
 
+// Saves the weather model to mongo after integrity checks
 func (weather Weather) SaveToMongo() (Weather, error) {
 	sync, err := weather.SyncCheck()
 
@@ -165,6 +167,7 @@ func (weather Weather) SaveToMongo() (Weather, error) {
 	return weather, nil
 }
 
+// Helper model to construct a sync helper from the actual struct data.
 func (weather Weather) ToSyncModel() WeatherSyncModel {
 	var sync WeatherSyncModel
 	sync.Date = weather.Forecast.Forecastday[0].Date
@@ -174,6 +177,7 @@ func (weather Weather) ToSyncModel() WeatherSyncModel {
 	return sync
 }
 
+// Performs an integrity check
 func (weather Weather) SyncCheck() (WeatherSyncModel, error) {
 	ctx := context.Background()
 	collection := db.MongoCollection(ctx, "syncs")

@@ -31,6 +31,7 @@ type Config struct {
 	}
 }
 
+// Ready to use list of cities to fetch weather forecast for.
 func (conf Config) WeatherCitiesList() []string {
 	return strings.Split(conf.Weather.Locations, ",")
 }
