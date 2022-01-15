@@ -49,6 +49,7 @@ func HackerNewsMessageBlock(stories []hackernews.Story, message slack.Message) s
 	return message
 }
 
+// Helper that appends all weather forecasts to the parent message as separate block.
 func WeatherForecastMessageBlock(citiesForectasts []string, message slack.Message) slack.Message {
 	headerText := slack.NewTextBlockObject("mrkdwn", ":sun_with_face: *WEATHER FORECAST* :sun_with_face:", false, false)
 	headerSection := slack.NewSectionBlock(headerText, nil, nil)
