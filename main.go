@@ -7,7 +7,7 @@ import (
 	"with_coffee/lib/weather"
 )
 
-const Version = "0.3.2"
+const Version = "0.4.0"
 
 func main() {
 	// Initialized slack message
