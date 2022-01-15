@@ -14,6 +14,7 @@ The personal newsletter you read with your morning coffee ☕️. A simple tool 
 You can use the below configuration to personalize what the tool delivers to slack.
 
 Variable | Default | Description
+---------|---------|------------
 `COVID_API_BASE_URL` | https://covid19.richdataservices.com/rds/api/query/int/jhu_country/select | This was added in case the base url will changed from the other side. The data structure is more or less hard coded.
 `COVID_COUNTRIES` | `GR` | Comma seperated list of [iso3166](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes to fetch data.
 `MONGO_CONNECTION_STRING` | No default but **required** | The connection string for the mongo cluster to cache data. *I plan to make this optional*
