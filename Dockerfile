@@ -24,5 +24,6 @@ RUN upx -q -9 /bin/with_coffee
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /bin/with_coffee /bin/with_coffee
+COPY lib/format/templates /lib/format/templates
 
 ENTRYPOINT ["/bin/with_coffee"]
